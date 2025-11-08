@@ -3,7 +3,7 @@ IT255.002 - Networking Fundamentals
 
 ---
 
-# 🧾 **Basic Cisco Switch Configuration — Field Notes**
+# **Basic Cisco Switch Configuration — Field Notes**
 
 ### **Scenario:**
 
@@ -327,4 +327,178 @@ ip default-gateway 10.1.17.145
 
 ---
 
-Would you like me to format this into a **printable version (Word/PDF)** or a **cheat-sheet style (one-pager)** you can keep for future labs or submissions?
+# **Project 2 — Configuring DHCP & DNS (SLC Administration Office) Note**
+
+**Network:** `10.1.17.112/28` (mask `255.255.255.240`)
+**Goal:** Configure the router as a DHCP server and the server as DNS so clients get IP, gateway and DNS automatically and can resolve hostnames.
+
+---
+
+## Device addressing (given)
+
+* `SLC_DHCP_Router` — `10.1.17.113/28` (gateway / DHCP server)
+* `SLC_Switch1` — `10.1.17.114/28` (switch management)
+* `SLC_DNS` — `10.1.17.115/28` (DNS server)
+* `Printer2` — `10.1.17.116/28` (printer)
+* **DHCP pool (available):** `10.1.17.117 — 10.1.17.126`
+* **Network ID:** `10.1.17.112`
+* **Broadcast:** `10.1.17.127`
+
+---
+
+## Part A — Router: DHCP configuration (CLI)
+
+1. Open router CLI. Enter privileged exec and global config:
+
+```
+enable
+configure terminal
+```
+
+2. Exclude statically assigned addresses:
+
+```
+ip dhcp excluded-address 10.1.17.113 10.1.17.116
+```
+
+3. Create DHCP pool and set parameters:
+
+```
+ip dhcp pool SLC_Admin
+ network 10.1.17.112 255.255.255.240
+ default-router 10.1.17.113
+ dns-server 10.1.17.115
+```
+
+4. Exit and save:
+
+```
+end
+copy running-config startup-config
+```
+
+**Why:** `excluded-address` prevents assigning the router/switch/DNS/printer IPs. `default-router` sets gateway for clients. `dns-server` tells clients which DNS to use.
+
+---
+
+## Part B — DNS server: configure DNS records (Packet Tracer Server > Services)
+
+1. Click the `SLC_DNS` server → **Services** tab → **DNS**.
+2. Turn **DNS Service** → **On**.
+3. Add A records (Name → Address):
+
+   * `SLC_DHCP_Router` → `10.1.17.113`
+   * `SLC_Switch1` → `10.1.17.114`
+   * `SLC_DNS` → `10.1.17.115`
+   * `Printer2` → `10.1.17.116`
+4. Verify records list shows the four entries.
+
+**Why:** Clients will query this server to resolve hostnames into IPs. The router hands out the DNS IP via DHCP.
+
+---
+
+## Part C — Client verification (PC2x6 and additional PC)
+
+### On PC2x6
+
+1. Desktop → IP Configuration → Select **DHCP**.
+2. Wait for the lease. Confirm the assigned values:
+
+   * IP: `10.1.17.117–10.1.17.126`
+   * Mask: `255.255.255.240`
+   * Default Gateway: `10.1.17.113`
+   * DNS Server: `10.1.17.115`
+
+### Add a second PC
+
+1. Add PC to `SLC_Switch1`, connect with straight-through cable.
+2. Desktop → IP Configuration → DHCP. Confirm it gets a unique IP from the pool.
+
+### DNS name tests (Command Prompt)
+
+From any DHCP client:
+
+```
+ping SLC_DHCP_Router
+ping SLC_Switch1
+ping SLC_DNS
+ping Printer2
+```
+
+Expected: names resolve to correct IPs and replies succeed.
+
+---
+
+## Commands to verify (router)
+
+* Show DHCP pools and usage:
+
+```
+show ip dhcp pool
+show ip dhcp binding
+show running-config | section dhcp
+```
+
+* Show interface brief:
+
+```
+show ip interface brief
+```
+
+---
+
+## Expected results / outputs
+
+* `show ip dhcp pool` shows `SLC_Admin`, network `10.1.17.112/28`, available addresses matching the pool.
+* `show ip dhcp binding` shows leased IPs and MAC addresses for clients.
+* `ping SLC_DNS` from a client resolves to `10.1.17.115`.
+* `ipconfig`/IP Configuration on PC shows gateway `10.1.17.113` and DNS `10.1.17.115`.
+
+---
+
+## Troubleshooting checklist
+
+* Client gets APIPA/No IP: verify router DHCP service and excluded-address not covering pool.
+* Client gets IP but DNS blank: ensure `dns-server` set in DHCP pool and DNS server reachable.
+* Name resolution fails: from client run `nslookup <name>` to see if DNS server responds. Confirm DNS service is ON and A records exist.
+* Router cannot assign addresses: verify interface connecting to switch/router is up and switch port is up.
+* Save config: `copy run start` so DHCP settings survive reboot.
+
+---
+
+## Screenshots to capture for submission
+
+1. **Router CLI** showing the DHCP config (capture `show running-config | section dhcp` or the `ip dhcp excluded-address` + `ip dhcp pool` block).
+2. **DNS server Services** window showing DNS service **ON** and the 4 A records.
+3. **PC2x6 IP Configuration** (DHCP assigned values visible).
+4. **New PC IP Configuration** (also showing DHCP assignment).
+5. **Command Prompt** on a PC showing successful `ping SLC_DNS` (or `nslookup SLC_DNS`).
+
+Add these screenshots to a Word document with short captions (what the screenshot shows and the timestamp).
+
+---
+
+## Submission & naming
+
+* Save Word doc containing screenshots and short captions.
+* File name suggestion: `Lastname_Firstname_Project2_DHCP_DNS.docx`
+* Submit before deadline.
+
+---
+
+## Quick reference: full router DHCP CLI sequence
+
+```
+enable
+configure terminal
+ip dhcp excluded-address 10.1.17.113 10.1.17.116
+ip dhcp pool SLC_Admin
+ network 10.1.17.112 255.255.255.240
+ default-router 10.1.17.113
+ dns-server 10.1.17.115
+exit
+copy running-config startup-config
+```
+
+---
+
